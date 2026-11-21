@@ -48,7 +48,7 @@ if defined FF (
 )
 
 rem Nombre claro para no confundirlo con la carpeta del codigo al compartirlo.
-set "ZIP=DescargadorVOD-v1.3-PARA-COMPARTIR.zip"
+set "ZIP=DescargadorVOD-v1.4-PARA-COMPARTIR.zip"
 powershell -NoProfile -Command "Compress-Archive -Path 'Compartir\*' -DestinationPath '%ZIP%' -Force"
 
 echo.

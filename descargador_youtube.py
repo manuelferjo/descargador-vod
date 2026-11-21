@@ -25,6 +25,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import urllib.parse
 import urllib.request
+import webbrowser
 import weakref
 import zipfile
 import zipimport
@@ -32,7 +33,10 @@ from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageOps, ImageTk
 
-VERSION = "1.3"
+VERSION = "1.4"
+VERSION = os.environ.get("DVOD_VERSION_PRUEBA") or VERSION   # solo para probar el actualizador
+REPO = "manuelferjo/descargador-vod"                           # de aquí salen las actualizaciones
+PAGINA_DESCARGA = f"https://github.com/{REPO}/releases/latest"
 TITULO = "Descargador VOD · Vortexs"
 APP_DATA = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "DescargadorVOD")
 MOTOR_ZIP = os.path.join(APP_DATA, "yt-dlp.zip")      # motor actualizado desde la app
@@ -154,6 +158,19 @@ def matar_procesos():
 
 def version_motor():
     return yt_dlp.version.__version__ if yt_dlp else "?"
+
+
+def ultima_version_programa():
+    """Última versión publicada del programa en GitHub y su zip."""
+    req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/latest",
+                                 headers={"User-Agent": "DescargadorVOD", "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        d = json.load(r)
+    zips = [a for a in d.get("assets", []) if a.get("name", "").lower().endswith(".zip")]
+    zips.sort(key=lambda a: "COMPARTIR" not in a["name"].upper())
+    if not zips:
+        raise ValueError("la versión publicada no trae el zip")
+    return {"tag": d["tag_name"], "url": zips[0]["browser_download_url"], "size": zips[0].get("size") or 0}
 
 
 def ultima_version_motor():
@@ -1008,6 +1025,8 @@ class App(tk.Tk):
         self.preview_url, self.preview_dur, self.preview_meta, self.preview_gen = None, None, "", 0
         self._t_url, self._debounce = None, None
         self.motor_nueva = None
+        self.prog_nueva = None
+        self.actualizando = False
 
         cfg = self.cargar_config()
         videos = [v for _, v in CALIDADES_VIDEO]
@@ -1058,7 +1077,8 @@ class App(tk.Tk):
         self.after(50, self.barra_oscura)
         self.after(200, self.comprobar_requisitos)
         if yt_dlp is not None:
-            threading.Thread(target=self.buscar_actualizacion, args=(False,), daemon=True).start()
+            threading.Thread(target=self.buscar_todo, args=(False,), daemon=True).start()
+        self.after(900, self.revisar_actualizacion_previa)
 
     # ---------- configuración ----------
     def cargar_config(self):
@@ -1145,7 +1165,7 @@ class App(tk.Tk):
             card(20, 296, 440, 96, "COMPATIBILIDAD")
             text(img, (S(36), S(366)), "Sin esto, YouTube puede usar AV1, que va a tirones en PCs antiguos.", nota, DIM)
             card(20, 404, 440, 96, "CARPETA DE DESCARGA")
-            card(20, 512, 440, 134, "MOTOR DE DESCARGA · YT-DLP")
+            card(20, 512, 440, 134, "ACTUALIZACIONES")
         return img
 
     def mostrar_pagina(self, p):
@@ -1263,12 +1283,14 @@ class App(tk.Tk):
         self.f_carpeta.native.insert(0, carpeta_ini)
         self.f_carpeta.native.bind("<FocusOut>", lambda e: self.guardar_config(), add="+")
         VButton(self, 344, 438, 100, 42, "opt", "Elegir…", self.elegir_carpeta, size=9)
-        origen = "actualizado desde la app" if MOTOR_ACTUALIZADO else "incluido en el programa"
-        self.lbl_motor = Label(self, 36, 548, 408, 22, "opt", f"Versión {version_motor()} · {origen}",
+        self.lbl_prog = Label(self, 36, 546, 200, 22, "opt", f"Programa v{VERSION}", kind="semi", size=9, color=TEXT)
+        self.lbl_prog_st = Label(self, 236, 546, 208, 22, "opt", "Comprobando…", size=8, anchor="rm")
+        self.lbl_motor = Label(self, 36, 570, 200, 22, "opt", f"Motor yt-dlp {version_motor()}",
                                kind="semi", size=9, color=TEXT)
-        self.lbl_motor2 = Label(self, 36, 570, 408, 20, "opt", "Comprobando si hay una versión nueva…", size=8)
-        self.btn_motor = VButton(self, 36, 596, 220, 36, "opt", "Buscar actualización", self.actualizar_motor,
-                                 kind="primary", size=9)
+        self.lbl_motor2 = Label(self, 236, 570, 208, 22, "opt", "Comprobando…", size=8, anchor="rm")
+        self.btn_prog = VButton(self, 36, 600, 200, 34, "opt", "Buscar actualizaciones", self.boton_programa, size=9)
+        self.btn_motor = VButton(self, 244, 600, 200, 34, "opt", "Motor al día", self.actualizar_motor, size=9)
+        self.btn_motor.enabled = False
         VButton(self, 20, 688, 214, 52, "opt", "Guía de uso", self.abrir_ayuda, size=9.5)
         VButton(self, 246, 688, 214, 52, "opt", "Abrir carpeta", self.abrir_carpeta, size=9.5)
 
@@ -1496,7 +1518,7 @@ class App(tk.Tk):
             self.pill.set("descargando")
         else:
             self.btn.set_text("Descargar")
-            self.btn.set_enabled(True)
+            self.btn.set_enabled(not self.actualizando)
             self.btn2.kind, self.btn2.text, self.btn2.command = "ghost", "Abrir carpeta", self.abrir_carpeta
             self.btn2.set_enabled(True)
             self.title(TITULO)
@@ -1524,19 +1546,14 @@ class App(tk.Tk):
         if self.motor_nueva:
             self.btn_motor.set_text("Descargando…")
             self.btn_motor.set_enabled(False)
-            self.lbl_motor2.set(f"Descargando yt-dlp {self.motor_nueva}…", MUTED)
+            self.lbl_motor2.set(f"Descargando {self.motor_nueva}…", MUTED)
             threading.Thread(target=self.instalar_motor, args=(self.motor_nueva,), daemon=True).start()
-        else:
-            self.btn_motor.set_enabled(False)
-            self.lbl_motor2.set("Comprobando…", MUTED)
-            threading.Thread(target=self.buscar_actualizacion, args=(True,), daemon=True).start()
 
     def buscar_actualizacion(self, manual):
         try:
             tag = ultima_version_motor()
         except Exception as e:
-            self.cola.put(("motor", ("error", f"No se pudo comprobar ({limpiar_msg(e)[:60]})." if manual
-                                     else "No se pudo comprobar si hay versión nueva (¿sin internet?).")))
+            self.cola.put(("motor", ("error", "Sin conexión" if not manual else f"Error: {limpiar_msg(e)[:40]}")))
             return
         if version_tupla(tag) > version_tupla(version_motor()):
             self.cola.put(("motor", ("nueva", tag)))
@@ -1561,34 +1578,238 @@ class App(tk.Tk):
                 os.remove(tmp)
             except OSError:
                 pass
-            self.cola.put(("motor", ("error", f"No se pudo actualizar ({limpiar_msg(e)[:60]}).")))
+            self.cola.put(("motor", ("error", f"Falló: {limpiar_msg(e)[:40]}")))
+
+    def marcar_pestana(self):
+        self.tabs.items[2] = "Opciones  •" if (self.prog_nueva or self.motor_nueva) else "Opciones"
+        self.tabs.render()
+
+    def boton_motor(self, nueva):
+        self.btn_motor.kind = "primary" if nueva else "ghost"
+        self.btn_motor.set_text("Actualizar motor" if nueva else "Motor al día")
+        self.btn_motor.set_enabled(bool(nueva))
 
     def evento_motor(self, tipo, valor):
-        self.btn_motor.set_enabled(True)
         if tipo == "nueva":
             self.motor_nueva = valor
-            self.lbl_motor2.set(f"Hay una versión nueva: {valor}", VIOLET_LIGHT)
-            self.btn_motor.set_text(f"Actualizar a {valor}")
-            self.tabs.items[2] = "Opciones  •"
-            self.tabs.render()
-            if not self.descargando:
+            self.lbl_motor2.set(f"Nueva: {valor}", VIOLET_LIGHT)
+            self.boton_motor(True)
+            if not self.descargando and not self.prog_nueva:
                 self.lbl_estado.set("Hay una actualización del motor de descarga: ve a Opciones.", VIOLET_LIGHT)
         elif tipo == "aldia":
             self.motor_nueva = None
-            self.lbl_motor2.set("Estás al día.", GREEN)
-            self.btn_motor.set_text("Buscar actualización")
+            self.lbl_motor2.set("Al día", GREEN)
+            self.boton_motor(False)
         elif tipo == "instalado":
             self.motor_nueva = None
-            self.tabs.items[2] = "Opciones"
-            self.tabs.render()
-            self.lbl_motor2.set(f"Instalado yt-dlp {valor}. Se usará al reiniciar.", GREEN)
-            self.btn_motor.set_text("Buscar actualización")
+            self.lbl_motor2.set(f"{valor} instalado (al reiniciar)", GREEN)
+            self.boton_motor(False)
             if not self.descargando and messagebox.askyesno(
                     "Motor actualizado", f"Se ha instalado yt-dlp {valor}.\n\n¿Reiniciar el programa ahora para usarlo?"):
                 self.reiniciar()
         elif tipo == "error":
             self.lbl_motor2.set(valor, (255, 120, 130))
-            self.btn_motor.set_text(f"Actualizar a {self.motor_nueva}" if self.motor_nueva else "Buscar actualización")
+            self.boton_motor(self.motor_nueva)
+        self.marcar_pestana()
+
+    # ---------- actualizador del programa (GitHub Releases) ----------
+    def buscar_todo(self, manual):
+        self.buscar_programa(manual)
+        self.buscar_actualizacion(manual)
+
+    def buscar_programa(self, manual):
+        try:
+            info = ultima_version_programa()
+        except Exception as e:
+            self.cola.put(("prog", ("error", "Sin conexión" if not manual else f"Error: {limpiar_msg(e)[:40]}", manual)))
+            return
+        if version_tupla(info["tag"]) > version_tupla(VERSION):
+            self.cola.put(("prog", ("nueva", info, manual)))
+        else:
+            self.cola.put(("prog", ("aldia", info, manual)))
+
+    def boton_programa(self):
+        if self.prog_nueva:
+            self.instalar_programa()
+        else:
+            self.btn_prog.set_enabled(False)
+            self.lbl_prog_st.set("Comprobando…", MUTED)
+            self.lbl_motor2.set("Comprobando…", MUTED)
+            threading.Thread(target=self.buscar_todo, args=(True,), daemon=True).start()
+
+    def evento_prog(self, tipo, valor, extra=None):
+        if tipo == "nueva":
+            self.prog_nueva = valor
+            self.lbl_prog_st.set(f"Nueva versión: {valor['tag']}", VIOLET_LIGHT)
+            self.btn_prog.kind = "primary"
+            self.btn_prog.set_text(f"Instalar {valor['tag']}")
+            self.btn_prog.set_enabled(True)
+            self.marcar_pestana()
+            if not self.descargando and not self.actualizando:
+                self.lbl_estado.set(f"Hay una versión nueva del programa ({valor['tag']}): ve a Opciones.", VIOLET_LIGHT)
+                mb = valor["size"] / 1048576
+                if messagebox.askyesno("Actualización disponible",
+                                       f"Hay una versión nueva del programa: {valor['tag']} (tienes la v{VERSION}).\n\n"
+                                       f"¿Descargarla e instalarla ahora? Son unos {mb:.0f} MB y el programa "
+                                       "se reiniciará solo."):
+                    self.instalar_programa()
+        elif tipo == "aldia":
+            self.prog_nueva = None
+            self.lbl_prog_st.set("Al día", GREEN)
+            self.btn_prog.kind = "ghost"
+            self.btn_prog.set_text("Buscar actualizaciones")
+            self.btn_prog.set_enabled(True)
+            self.marcar_pestana()
+        elif tipo == "error":
+            self.lbl_prog_st.set(valor, (255, 120, 130) if extra else DIM)
+            self.btn_prog.set_enabled(True)
+        elif tipo == "progreso":
+            self.lbl_prog_st.set(f"Descargando… {valor:.0f} %", VIOLET_LIGHT)
+            self.btn_prog.set_text(f"Descargando {valor:.0f} %")
+            self.title(f"Actualizando {valor:.0f} % · {TITULO}")
+        elif tipo == "listo":
+            self.aplicar_actualizacion(*valor)
+        elif tipo == "fallo":
+            self.actualizando = False
+            self.title(TITULO)
+            self.btn.set_enabled(True)
+            self.btn_prog.set_text(f"Instalar {self.prog_nueva['tag']}" if self.prog_nueva else "Buscar actualizaciones")
+            self.btn_prog.set_enabled(True)
+            self.lbl_prog_st.set("No se pudo descargar", (255, 120, 130))
+            if messagebox.askyesno("Actualización", f"No se pudo descargar la actualización:\n{valor}\n\n"
+                                                    "¿Abrir la página para descargarla a mano?"):
+                webbrowser.open(PAGINA_DESCARGA)
+
+    def instalar_programa(self):
+        info = self.prog_nueva
+        if not info or self.actualizando:
+            return
+        if self.descargando:
+            messagebox.showinfo("Actualización", "Espera a que termine la descarga en curso y vuelve a intentarlo.")
+            return
+        if not getattr(sys, "frozen", False):
+            webbrowser.open(PAGINA_DESCARGA)  # ejecutándolo como .py no hay nada que sustituir
+            return
+        prueba = os.path.join(carpeta_app(), ".prueba_escritura")
+        try:
+            open(prueba, "w").close()
+            os.remove(prueba)
+        except OSError:
+            if messagebox.askyesno("Actualización",
+                                   "No tengo permiso para escribir en la carpeta del programa.\n\n"
+                                   "Muévelo a otra carpeta (por ejemplo Documentos) o descarga la versión nueva a mano. "
+                                   "¿Abrir la página de descarga?"):
+                webbrowser.open(PAGINA_DESCARGA)
+            return
+        self.actualizando = True
+        self.btn.set_enabled(False)
+        self.btn_prog.set_enabled(False)
+        self.lbl_prog_st.set("Descargando… 0 %", VIOLET_LIGHT)
+        threading.Thread(target=self.bajar_programa, args=(info,), daemon=True).start()
+
+    def bajar_programa(self, info):
+        base = os.path.join(tempfile.gettempdir(), "DescargadorVOD_actualizacion")
+        try:
+            shutil.rmtree(base, ignore_errors=True)
+            os.makedirs(base, exist_ok=True)
+            zp = os.path.join(base, "nuevo.zip")
+            req = urllib.request.Request(info["url"], headers={"User-Agent": "DescargadorVOD"})
+            with urllib.request.urlopen(req, timeout=60) as r, open(zp, "wb") as f:
+                total = int(r.headers.get("Content-Length") or info.get("size") or 0)
+                hecho, ultimo = 0, 0.0
+                while True:
+                    b = r.read(1 << 20)
+                    if not b:
+                        break
+                    f.write(b)
+                    hecho += len(b)
+                    if total and time.time() - ultimo > 0.25:
+                        ultimo = time.time()
+                        self.cola.put(("prog", ("progreso", 100 * hecho / total)))
+            if total and hecho < total:
+                raise ValueError("la descarga se cortó")
+            ext = os.path.join(base, "nuevo")
+            with zipfile.ZipFile(zp) as z:
+                z.extractall(ext)
+            os.remove(zp)
+            src = None
+            for raiz, dirs, files in os.walk(ext):
+                if "DescargadorYouTube.exe" in files and "_internal" in dirs:
+                    src = raiz
+                    break
+            if not src:
+                raise ValueError("el zip no trae DescargadorYouTube.exe")
+            self.cola.put(("prog", ("listo", (src, base))))
+        except Exception as e:
+            self.cola.put(("prog", ("fallo", limpiar_msg(e)[:160])))
+
+    def aplicar_actualizacion(self, src, base):
+        """Cierra el programa; un script de PowerShell copia la versión nueva encima y lo vuelve a abrir."""
+        destino = carpeta_app()
+        ps1 = os.path.join(base, "actualizar.ps1")
+        log = os.path.join(APP_DATA, "actualizacion.log")
+
+        def q(t):
+            return "'" + t.replace("'", "''") + "'"
+
+        script = f"""$ErrorActionPreference = 'Continue'
+$src = {q(src)}
+$dst = {q(destino)}
+$log = {q(log)}
+$base = {q(base)}
+Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 800
+$rc = 99
+for ($i = 0; $i -lt 10; $i++) {{
+    robocopy $src $dst /E /R:2 /W:1 /NP /NFL /NDL /NJH /NJS | Out-Null
+    $rc = $LASTEXITCODE
+    if ($rc -lt 8) {{ break }}
+    Start-Sleep -Seconds 2
+}}
+Set-Content -LiteralPath $log -Value $rc
+Start-Process -FilePath (Join-Path $dst 'DescargadorYouTube.exe') -WorkingDirectory $dst
+Start-Sleep -Seconds 3
+Remove-Item -LiteralPath $base -Recurse -Force -ErrorAction SilentlyContinue
+"""
+        try:
+            with open(ps1, "w", encoding="utf-8-sig") as f:
+                f.write(script)
+            os.makedirs(APP_DATA, exist_ok=True)
+            with open(os.path.join(APP_DATA, "actualizacion.json"), "w", encoding="utf-8") as f:
+                json.dump({"de": VERSION, "a": self.prog_nueva["tag"]}, f)
+            env = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")
+            env.pop("DVOD_VERSION_PRUEBA", None)
+            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                              "-File", ps1], env=env, creationflags=NO_WINDOW, close_fds=True)
+        except OSError as e:
+            self.cola.put(("prog", ("fallo", str(e))))
+            return
+        self.guardar_config()
+        self.destroy()
+
+    def revisar_actualizacion_previa(self):
+        """Tras reiniciar por una actualización, confirma si se instaló bien."""
+        marca = os.path.join(APP_DATA, "actualizacion.json")
+        try:
+            with open(marca, encoding="utf-8") as f:
+                d = json.load(f)
+            os.remove(marca)
+        except (OSError, ValueError):
+            return
+        a = str(d.get("a", ""))
+        if version_tupla(VERSION) >= version_tupla(a):
+            self.lbl_estado.set(f"¡Actualizado a la versión {a}!", GREEN)
+            self.escribir_log(f"Programa actualizado de v{d.get('de')} a {a}.\n")
+        else:
+            try:
+                with open(os.path.join(APP_DATA, "actualizacion.log"), encoding="utf-8-sig") as f:
+                    rc = f.read().strip()
+            except OSError:
+                rc = "?"
+            if messagebox.askyesno("Actualización",
+                                   f"No se pudo instalar la versión {a} (código {rc}).\n\n"
+                                   "¿Abrir la página para descargarla a mano?"):
+                webbrowser.open(PAGINA_DESCARGA)
 
     def reiniciar(self):
         env = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")
@@ -1626,6 +1847,8 @@ class App(tk.Tk):
                         self.preview.set(estado, titulo, (meta + extra) if estado == "ok" else meta, thumb)
                 elif tipo == "motor":
                     self.evento_motor(*valor)
+                elif tipo == "prog":
+                    self.evento_prog(*valor)
                 elif tipo == "fin":
                     ok, total = valor
                     self.progreso.set(100 if ok else 0)
@@ -1667,7 +1890,7 @@ class App(tk.Tk):
         return ini, fin
 
     def iniciar(self):
-        if self.descargando or yt_dlp is None:
+        if self.descargando or self.actualizando or yt_dlp is None:
             return
         urls = self.urls()
         if not urls:
