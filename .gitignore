@@ -1,0 +1,16 @@
+# Compilación y paquetes (el zip para compartir va en "Releases" de GitHub, no en el código)
+build/
+dist/
+Compartir/
+DescargadorYouTube/
+*.zip
+*.spec
+__pycache__/
+*.pyc
+
+# Copias antiguas
+*_backup.py
+
+# Binarios grandes
+ffmpeg.exe
+ffprobe.exe

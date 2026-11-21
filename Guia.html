@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía del Descargador</title>
+<style>
+  :root { --bg:#fafaf8; --text:#1f1f1f; --muted:#5d5d5d; --card:#ffffff; --line:#e4e2dc; --accent:#d23b2a; --tip:#fff6e5; --tipline:#f0c46a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#17171a; --text:#ececec; --muted:#a8a8ad; --card:#202024; --line:#34343a; --accent:#ff6a57; --tip:#2b2416; --tipline:#8a6a2a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 "Segoe UI", system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:2rem; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 32px; }
+  h2 { font-size:1.25rem; margin:36px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--accent); display:inline-block; }
+  ol, ul { padding-left:1.4em; }
+  li { margin:6px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin:12px 0; }
+  .tip { background:var(--tip); border-left:4px solid var(--tipline); border-radius:6px; padding:12px 16px; margin:14px 0; }
+  kbd { font-family:Consolas, monospace; background:var(--card); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:1px 6px; font-size:.9em; }
+  table { border-collapse:collapse; width:100%; margin:8px 0; }
+  td, th { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:.9rem; }
+  dt { font-weight:600; margin-top:14px; }
+  dd { margin:4px 0 0 0; color:var(--muted); }
+  footer { margin-top:48px; color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Descargador VOD · YouTube y Twitch</h1>
+  <p class="sub">Guía rápida · descarga vídeos de YouTube y VODs de Twitch en distintas calidades o solo el audio en MP3, enteros o solo un trozo. Gratis y sin instalar nada.</p>
+
+  <h2>1. Prepararlo (solo la primera vez)</h2>
+  <ol>
+    <li>Haz clic derecho sobre <b>DescargadorVOD-v1.3-PARA-COMPARTIR.zip</b> y elige <b>Extraer todo…</b> → <b>Extraer</b>.</li>
+    <li>Entra en la carpeta que se ha creado. Verás <b>DescargadorYouTube.exe</b>, <b>ffmpeg.exe</b>, esta guía y una carpeta <b>_internal</b> (no la borres ni la muevas: el programa la necesita).</li>
+    <li>Haz doble clic en <b>DescargadorYouTube.exe</b>.</li>
+  </ol>
+  <div class="tip"><b>Importante:</b> no lo abras desde dentro del zip sin extraerlo. Si lo haces, no funcionará. Todo lo que hay dentro tiene que quedarse junto en la misma carpeta.</div>
+
+  <div class="card">
+    <b>Si aparece "Windows protegió su PC"</b><br>
+    Es normal: sale con cualquier programa casero que no está firmado por una empresa. Pulsa <b>Más información</b> y luego <b>Ejecutar de todas formas</b>. Solo pasa la primera vez.
+  </div>
+
+  <h2>2. Descargar</h2>
+  <ol>
+    <li>Copia el enlace del vídeo de YouTube o del VOD de Twitch (barra de direcciones o botón <b>Compartir → Copiar</b>). En Twitch, los VODs tienen la forma <i>twitch.tv/videos/123456789</i>.</li>
+    <li>Pégalo en el recuadro <b>Enlaces</b> con <kbd>Ctrl</kbd> + <kbd>V</kbd> o con <b>Pegar enlace</b>. Puedes pegar varios, uno por línea. Debajo aparece una <b>vista previa</b> con la miniatura, el título y la duración para que compruebes que es el vídeo correcto.</li>
+    <li>En <b>Formato</b> elige <b>Vídeo MP4</b> o <b>Solo audio MP3</b> y pulsa la calidad que quieras.</li>
+    <li>Pulsa <b>Descargar</b>. Verás el <b>porcentaje</b>, la velocidad y el tiempo que falta. Cuando acabe pondrá <i>Terminado</i>.</li>
+  </ol>
+  <p>¿Te has equivocado? Mientras descarga, el botón de la derecha se convierte en <b>Cancelar</b>: para la descarga al momento y borra los archivos a medias.</p>
+  <p>Por defecto se guarda en tu carpeta <b>Descargas</b>. Puedes cambiarla en la pestaña <b>Opciones</b> → <b>Carpeta de descarga</b>. El programa recuerda tus ajustes para la próxima vez.</p>
+
+  <h3>Descargar solo una parte (fragmento)</h3>
+  <ol>
+    <li>En la tarjeta <b>Fragmento</b>, activa el interruptor <b>Solo una parte</b>.</li>
+    <li>En <b>Desde</b> y <b>Hasta</b> pon horas : minutos : segundos. Por ejemplo, del minuto 45 a la 1:55:00 → Desde <kbd>00</kbd>:<kbd>45</kbd>:<kbd>00</kbd>, Hasta <kbd>1</kbd>:<kbd>55</kbd>:<kbd>00</kbd>.</li>
+    <li>Si dejas <b>Hasta</b> todo a 0, se descarga desde <b>Desde</b> hasta el final.</li>
+  </ol>
+  <p><b>Truco:</b> si copias el enlace de Twitch o YouTube con el tiempo puesto (por ejemplo <i>twitch.tv/videos/123?t=1h45m00s</i>, o <b>Compartir → Copiar en el minuto actual</b>), el programa rellena <b>Desde</b> automáticamente.</p>
+  <p>Solo se baja ese trozo, no el VOD entero, así que es mucho más rápido. El archivo lleva el tramo en el nombre, p. ej. <i>… (0h45m00s-1h55m00s).mp4</i>. La barra también muestra el porcentaje del fragmento.</p>
+  <p><b>Cortes exactos al segundo:</b> apagado, el corte puede empezar unos segundos antes o después (va al fotograma clave más cercano), pero es rápido. Actívalo si necesitas precisión total; tarda bastante más porque vuelve a codificar el vídeo.</p>
+  <p>En la pestaña <b>Registro</b> ves el detalle de cada descarga y los errores, y puedes copiarlo con <b>Copiar registro</b>. La píldora de arriba a la derecha indica el estado: <i>Listo</i>, <i>Descargando</i>, <i>Procesando</i>, <i>Terminado</i>, <i>Cancelado</i> o <i>Con errores</i>. Si algo falla, el registro también te dice qué hacer.</p>
+
+  <h3>Pestaña Opciones</h3>
+  <dl>
+    <dt>Sesión del navegador</dt>
+    <dd>Si YouTube dice <i>"Sign in to confirm you're not a bot"</i>, o quieres bajar vídeos +18 o VODs de Twitch solo para suscriptores, elige el navegador donde tienes la sesión iniciada. <b>Firefox</b> es el que mejor funciona; con Chrome o Edge, ciérralos del todo antes de descargar.</dd>
+    <dt>Priorizar H.264 (activado por defecto)</dt>
+    <dd>Baja el vídeo en el formato que se abre en cualquier PC, móvil y editor (CapCut, Premiere…). Si lo apagas, YouTube puede dar AV1: ocupa algo menos, pero va a tirones en ordenadores antiguos. En 1440p y 4K YouTube no ofrece H.264 y se usa VP9.</dd>
+    <dt>Motor de descarga</dt>
+    <dd>El programa usa <i>yt-dlp</i> para hablar con YouTube y Twitch. Al abrirlo comprueba si hay una versión nueva; si la hay, la pestaña pone <b>Opciones •</b> y basta con pulsar <b>Actualizar</b> y reiniciar. No hace falta volver a descargar el programa.</dd>
+  </dl>
+
+  <h2>3. ¿Qué calidad elijo?</h2>
+  <table>
+    <tr><th>Opción</th><th>Para qué</th></tr>
+    <tr><td>Vídeo – Máxima calidad</td><td>La mejor que tenga el vídeo. Archivos grandes.</td></tr>
+    <tr><td>Vídeo – 1080p</td><td>Lo recomendado: muy buena calidad y tamaño razonable.</td></tr>
+    <tr><td>Vídeo – 720p / 480p</td><td>Para el móvil o si vas justo de espacio.</td></tr>
+    <tr><td>Audio – MP3 320 kbps</td><td>Solo el sonido, con la mejor calidad. Incluye portada.</td></tr>
+    <tr><td>Audio – MP3 128 kbps</td><td>Solo el sonido, ocupando poco (podcasts, charlas).</td></tr>
+  </table>
+  <p>Si un vídeo no llega a la calidad elegida, se descarga la más alta que tenga.</p>
+  <p><b>Siempre a 60 fps si existen:</b> el programa da prioridad a los 60 fps. Si la calidad elegida no los tiene, sube a la más cercana que sí (por ejemplo, en Twitch 480p y 360p solo van a 30 fps, así que se descarga 720p a 60 fps). Si el vídeo original se grabó a menos de 60 fps, se baja tal cual. En la pestaña <b>Registro</b> verás la resolución y los fps de cada descarga.</p>
+  <p><b>Lista completa:</b> actívalo si pegas el enlace de una lista de reproducción y quieres todos sus vídeos. Si no, solo baja el vídeo del enlace.</p>
+
+  <h2>4. Si algo falla</h2>
+  <dl>
+    <dt>Sale un aviso de "Falta FFmpeg"</dt>
+    <dd>No has extraído el zip, o has movido el .exe a otra carpeta sin ffmpeg.exe. Vuelve a extraerlo todo y ábrelo desde ahí.</dd>
+    <dt>Antes funcionaba y ahora da error en todos los vídeos</dt>
+    <dd>YouTube cambia su sistema de vez en cuando. Ve a <b>Opciones → Motor de descarga</b> y pulsa <b>Buscar actualización</b> / <b>Actualizar</b>. Si sigue fallando, pide la versión nueva a quien te pasó el programa.</dd>
+    <dt>"Sign in to confirm you're not a bot"</dt>
+    <dd>En <b>Opciones → Sesión del navegador</b> elige el navegador donde tienes YouTube abierto con tu cuenta.</dd>
+    <dt>Se abre el archivo .py en vez del programa</dt>
+    <dd>Has recibido la carpeta del código, no el programa. El archivo correcto es <b>DescargadorVOD-…-PARA-COMPARTIR.zip</b> y dentro trae <b>DescargadorYouTube.exe</b>.</dd>
+    <dt>Error en un vídeo concreto</dt>
+    <dd>Puede ser privado, tener restricción de edad o no estar disponible en tu país. Esos no se pueden descargar.</dd>
+    <dt>Error en un VOD de Twitch</dt>
+    <dd>Puede haber caducado (Twitch borra los VODs pasados unos días o semanas). Si es solo para suscriptores y lo estás, activa la sesión del navegador en Opciones.</dd>
+    <dt>El antivirus lo bloquea</dt>
+    <dd>Es un falso positivo habitual en programas hechos con Python. Si te fías de quien te lo ha enviado, en Seguridad de Windows → Protección contra virus → Historial de protección, busca el aviso y elige <b>Permitir en el dispositivo</b>.</dd>
+  </dl>
+
+  <h2>5. Uso responsable</h2>
+  <p>Úsalo para tus propios vídeos, contenido con licencia libre o material que tengas permiso para guardar. Descargar música, películas o vídeos con derechos de autor sin permiso va contra las normas de YouTube y puede ser ilegal.</p>
+
+  <footer>Hecho con yt-dlp y FFmpeg, herramientas gratuitas y de código abierto.</footer>
+</main>
+</body>
+</html>
