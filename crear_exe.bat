@@ -24,7 +24,7 @@ set "VER="
 if exist "version_info.txt" set "VER=--version-file version_info.txt"
 rem res\ lleva el logo, el icono y las fuentes del estilo Vortexs.
 python -m PyInstaller --noconfirm --clean --onedir --windowed --noupx %VER% ^
-    --icon res\app.ico --add-data "res;res" ^
+    --icon res\app.ico --add-data "res;res" --exclude-module numpy ^
     --name DescargadorYouTube --collect-all yt_dlp descargador_youtube.py
 if errorlevel 1 (echo [ERROR] Fallo PyInstaller & pause & exit /b 1)
 
