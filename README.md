@@ -23,7 +23,16 @@ Si Windows dice "Windows protegió su PC": **Más información** → **Ejecutar 
 - **Cancelar** en cualquier momento (borra los archivos a medias).
 - **Priorizar H.264**: el vídeo se abre en cualquier PC y editor; si llega en HEVC/AV1 se convierte.
 - **Sesión del navegador** (Firefox, Chrome, Edge…) para vídeos que piden iniciar sesión.
+- **Se actualiza solo** (desde la v1.4): al abrirse mira si hay una Release nueva en este repositorio y, si aceptas, la descarga, la instala y se vuelve a abrir.
 - **Actualizar el motor** (yt-dlp) desde la propia app cuando YouTube cambia algo.
+
+## Publicar una versión nueva
+
+1. Sube `VERSION` en `descargador_youtube.py` (p. ej. `"1.5"`), y el nombre del zip en `crear_exe.bat` y `Guia.html`.
+2. Ejecuta `crear_exe.bat`.
+3. Crea una Release con la etiqueta `v1.5` y adjunta el `…-PARA-COMPARTIR.zip`.
+
+Todos los que tengan la v1.4 o posterior verán el aviso de actualización al abrir el programa.
 
 ## Compilar desde el código
 
